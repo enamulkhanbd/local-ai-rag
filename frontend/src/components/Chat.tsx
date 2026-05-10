@@ -4,13 +4,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Globe, FileText, Loader2, Search, Copy, Check, Sparkles, Database } from 'lucide-react';
 import axios from 'axios';
 import { motion, useReducedMotion } from 'framer-motion';
-
-const API_BASE = "http://localhost:8000";
+import { API_BASE } from '@/lib/api';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   source?: string;
+  providerUsed?: string;
+  fallbackFrom?: string;
 }
 
 const setupSteps = [
@@ -104,12 +105,17 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: res.data.response,
-        source: res.data.source
+        source: res.data.source,
+        providerUsed: res.data.provider_used,
+        fallbackFrom: res.data.fallback_from
       }]);
-    } catch {
+    } catch (error) {
+      const detail = axios.isAxiosError(error) ? error.response?.data?.detail : null;
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Error connecting to AI. Please ensure your backend is running." 
+        content: typeof detail === "string" && detail.trim()
+          ? detail
+          : "Error connecting to AI. Please ensure your backend is running." 
       }]);
     } finally {
       setIsLoading(false);
@@ -170,6 +176,8 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
                     <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-300">
                       {msg.source === "Knowledge Base" ? <FileText className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
                       {msg.source}
+                      {msg.providerUsed && <span className="text-gray-400">· {msg.providerUsed}</span>}
+                      {msg.fallbackFrom && <span className="text-[#90A4AE]">fallback from {msg.fallbackFrom}</span>}
                     </div>
                   )}
                 </div>

@@ -31,6 +31,23 @@ A professional, multi-AI RAG application with a modern React frontend and FastAP
    npm run dev
    ```
 
+## Vercel Deployment
+
+This repository is not a single root-level Next.js app. The web app lives in `frontend/`.
+
+If you deploy this repo to Vercel, set:
+- `Root Directory` to `frontend`
+- `Framework Preset` to `Next.js`
+- `NEXT_PUBLIC_API_BASE_URL` to your deployed backend URL
+
+Example:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://your-backend.example.com
+```
+
+The FastAPI backend is separate from the Vercel frontend deployment. If you only deploy the frontend and leave the API URL as `http://localhost:8000`, the site will load but chat and knowledge processing will fail.
+
 ## 🎨 Features
 - **Pixel-Perfect UI**: 100% matched to Figma redesign.
 - **Multi-AI**: Toggle between Gemini, OpenAI, Claude, and DeepSeek.

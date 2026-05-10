@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import Chat from '@/components/Chat';
 
 export default function Home() {
-  const [selectedProvider, setSelectedProvider] = useState("Gemini");
+  const [selectedProvider, setSelectedProvider] = useState("OpenRouter");
   const [knowledgeChunks, setKnowledgeChunks] = useState(0);
 
   return (

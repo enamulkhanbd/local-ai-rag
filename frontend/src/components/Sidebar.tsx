@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Loader2, X } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE } from '@/lib/api';
 
-const API_BASE = "http://localhost:8000";
 const ACCEPTED_UPLOAD_TYPES = [
   ".pdf", ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
   ".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm",
@@ -31,10 +31,20 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
   const [isProviderOpen, setIsProviderOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const providerMenuRef = useRef<HTMLDivElement>(null);
+  const preferredProvider = "OpenRouter";
 
   useEffect(() => {
-    axios.get(`${API_BASE}/providers`).then(res => setProviders(res.data)).catch(() => {});
+    axios.get(`${API_BASE}/providers`).then(res => {
+      const nextProviders = Array.isArray(res.data) ? res.data : [];
+      setProviders(nextProviders);
+    }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (providers.length > 0 && !providers.includes(selectedProvider)) {
+      setSelectedProvider(providers.includes(preferredProvider) ? preferredProvider : providers[0]);
+    }
+  }, [providers, selectedProvider, setSelectedProvider]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -102,7 +112,7 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
 
               {isProviderOpen && (
                 <div className="absolute top-[46px] left-0 right-0 rounded-xl border border-[#CFD8DC] bg-white shadow-[0px_10px_24px_rgba(0,0,0,0.08)] p-1.5 z-20">
-                  {(providers.length > 0 ? providers : ["Gemini"]).map((provider) => {
+                  {(providers.length > 0 ? providers : [selectedProvider]).map((provider) => {
                     const isActive = provider === selectedProvider;
                     return (
                       <button

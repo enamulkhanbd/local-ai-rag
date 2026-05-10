@@ -11,6 +11,7 @@ import mailbox
 import re
 import wave
 import zipfile
+import logging
 from pathlib import Path
 from email import policy
 from email.parser import BytesParser
@@ -52,8 +53,10 @@ KEYS = {
     "DeepSeek": _clean_env("DEEPSEEK_API_KEY"),
     "OpenRouter": _clean_env("OPENROUTER_API_KEY")
 }
+PROVIDER_PRIORITY = ["OpenRouter", "Gemini", "OpenAI", "Claude", "DeepSeek"]
 
 app = FastAPI()
+logger = logging.getLogger("uvicorn.error")
 
 # Enable CORS for React frontend
 app.add_middleware(
@@ -111,7 +114,14 @@ ACCEPTED_UPLOAD_EXTENSIONS = sorted(
 SUPPORTED_UPLOAD_TEXT = ", ".join(ACCEPTED_UPLOAD_EXTENSIONS)
 
 # --- Helper Functions ---
+def get_configured_providers() -> List[str]:
+    return [provider for provider in PROVIDER_PRIORITY if KEYS.get(provider)]
+
+
 def get_llm(provider: str):
+    if provider not in KEYS or not KEYS[provider]:
+        return None
+
     if provider == "Gemini":
         return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
     elif provider == "OpenAI":
@@ -136,6 +146,94 @@ def get_llm(provider: str):
 
 def get_embeddings():
     return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+
+def classify_llm_error(provider: str, exc: Exception) -> tuple[int, str]:
+    message = str(exc).strip() or f"{provider} request failed"
+    lowered = message.lower()
+    alternatives = [name for name in get_configured_providers() if name != provider]
+    suggestion = f" Try switching to {alternatives[0]}." if alternatives else ""
+
+    if any(token in lowered for token in ["resourceexhausted", "quota", "rate limit", "429"]):
+        return 429, f"{provider} quota or rate limit exceeded.{suggestion}"
+
+    if any(token in lowered for token in ["api key", "authentication", "unauthorized", "forbidden", "401", "403"]):
+        return 401, f"{provider} authentication failed. Check the API key and account access."
+
+    return 500, f"{provider} request failed: {message}"
+
+
+def raise_llm_http_error(provider: str, exc: Exception) -> None:
+    status_code, detail = classify_llm_error(provider, exc)
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
+def get_provider_attempt_order(requested_provider: str) -> List[str]:
+    configured = get_configured_providers()
+
+    if requested_provider not in PROVIDER_PRIORITY:
+        raise HTTPException(status_code=400, detail="Invalid provider")
+
+    if requested_provider in configured:
+        return [requested_provider] + [provider for provider in configured if provider != requested_provider]
+
+    return configured
+
+
+def extract_llm_text(response) -> str:
+    content = getattr(response, "content", response)
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and item.get("text"):
+                parts.append(str(item["text"]))
+            elif hasattr(item, "get") and item.get("text"):
+                parts.append(str(item.get("text")))
+        return "\n".join(part.strip() for part in parts if part and str(part).strip())
+
+    return str(content)
+
+
+def run_chat_with_provider(provider: str, message: str, mode: str) -> dict:
+    llm = get_llm(provider)
+    if not llm:
+        raise RuntimeError(f"{provider} is not configured")
+
+    response = None
+    source = "General Knowledge"
+
+    if vector_db:
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            retriever=vector_db.as_retriever(search_kwargs={"k": 3}),
+            return_source_documents=False,
+            chain_type_kwargs={"prompt": RAG_PROMPT}
+        )
+        rag_response = qa_chain.invoke(message)["result"].strip()
+
+        if NOT_FOUND_FLAG not in rag_response:
+            response = rag_response
+            source = "Knowledge Base"
+
+    if response is None:
+        if mode == "Knowledge Base Only":
+            response = "I couldn't find the answer in your knowledge base."
+        else:
+            general_response = llm.invoke(f"Answer concisely.\n\nQuestion: {message}")
+            response = extract_llm_text(general_response).strip()
+            source = "General Knowledge"
+
+    return {
+        "response": response,
+        "source": source,
+        "provider_used": provider,
+    }
 
 
 def get_ocr_engine():
@@ -578,7 +676,7 @@ def read_root():
 
 @app.get("/providers")
 def get_available_providers():
-    return [p for p, k in KEYS.items() if k]
+    return get_configured_providers()
 
 @app.post("/process-knowledge")
 async def process_knowledge(
@@ -643,47 +741,32 @@ async def chat(
     provider: str = Form(...),
     mode: str = Form("Smart Hybrid (Docs + AI)")
 ):
-    global vector_db
-    
     try:
-        llm = get_llm(provider)
-        if not llm:
-            raise HTTPException(status_code=400, detail="Invalid provider")
-            
-        response = None
-        source = "General Knowledge"
-        
-        # Strategy 1: RAG
-        if vector_db:
-            qa_chain = RetrievalQA.from_chain_type(
-                llm=llm,
-                retriever=vector_db.as_retriever(search_kwargs={"k": 3}),
-                return_source_documents=False,
-                chain_type_kwargs={"prompt": RAG_PROMPT}
-            )
-            rag_response = qa_chain.invoke(message)["result"].strip()
-            
-            if NOT_FOUND_FLAG not in rag_response:
-                response = rag_response
-                source = "Knowledge Base"
-        
-        # Strategy 2: Fallback
-        if response is None:
-            if mode == "Knowledge Base Only":
-                response = "I couldn't find the answer in your knowledge base."
-            else:
-                general_response = llm.invoke(f"Answer concisely.\n\nQuestion: {message}")
-                response = general_response.content
-                source = "General Knowledge"
-        
-        return {
-            "response": response,
-            "source": source
-        }
+        provider_attempts = get_provider_attempt_order(provider)
+        if not provider_attempts:
+            raise HTTPException(status_code=503, detail="No configured providers are available.")
+
+        failures = []
+
+        for attempt_provider in provider_attempts:
+            try:
+                result = run_chat_with_provider(attempt_provider, message, mode)
+                if attempt_provider != provider:
+                    result["fallback_from"] = provider
+                return result
+            except Exception as exc:
+                status_code, detail = classify_llm_error(attempt_provider, exc)
+                logger.warning("Chat request failed for provider %s: %s", attempt_provider, detail)
+                failures.append((status_code, detail))
+
+        final_status = failures[0][0] if failures else 503
+        final_detail = "All configured providers failed. " + " ".join(detail for _, detail in failures)
+        raise HTTPException(status_code=final_status, detail=final_detail)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Chat request failed for provider %s", provider)
+        raise_llm_http_error(provider, e)
 
 @app.post("/clear")
 async def clear_knowledge():

@@ -16,6 +16,18 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Deploying To Vercel
+
+Use `frontend` as the Vercel project root directory.
+
+Set this environment variable in Vercel so the deployed app can reach your backend:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://your-backend.example.com
+```
+
+If you deploy the frontend without changing the API URL, it will still try to call `http://localhost:8000`.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
