@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Search, Globe, FileText, Loader2 } from 'lucide-react';
+import { Send, Globe, FileText, Loader2, Search, Copy, Check } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = "http://localhost:8000";
@@ -16,6 +16,7 @@ export default function Chat({ provider }: { provider: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function Chat({ provider }: { provider: string }) {
         content: res.data.response,
         source: res.data.source
       }]);
-    } catch (error) {
+    } catch {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: "Error connecting to AI. Please ensure your backend is running." 
@@ -53,31 +54,53 @@ export default function Chat({ provider }: { provider: string }) {
     }
   };
 
+  const handleCopy = async (content: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageIndex(index);
+      setTimeout(() => setCopiedMessageIndex(null), 1400);
+    } catch {
+      setCopiedMessageIndex(null);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white relative">
       {/* Messages */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-6 py-10 space-y-10"
+        className="flex-1 overflow-y-auto px-8 py-10 space-y-10"
       >
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center opacity-30">
-            <Bot className="w-12 h-12 mb-4" />
-            <h2 className="text-2xl font-semibold">How can I help you today?</h2>
-          </div>
-        ) : (
-          <div className="max-w-[800px] mx-auto space-y-10">
+        {messages.length > 0 && (
+          <div className="max-w-[900px] mx-auto space-y-4">
             {messages.map((msg, i) => (
-              <div key={i} className="flex gap-5">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'assistant' ? 'bg-[#10A37F]' : 'bg-gray-100'}`}>
-                  {msg.role === 'assistant' ? <Bot className="w-5 h-5 text-white" /> : <User className="w-5 h-5 text-gray-500" />}
-                </div>
-                <div className="flex flex-col gap-2 pt-1">
-                  <div className="text-[15px] text-[#2D2D2D] leading-relaxed whitespace-pre-wrap font-medium">
+              <div
+                key={i}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[72%] rounded-2xl px-4 py-3 ${
+                    msg.role === "user"
+                      ? "bg-[#f0f0f0] text-[#1c1c1c]"
+                      : "bg-transparent text-[#1c1c1c]"
+                  }`}
+                >
+                  <div className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium">
                     {msg.content}
                   </div>
-                  {msg.source && (
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-300">
+                  {msg.role === "assistant" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(msg.content, i)}
+                      className="mt-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-[#607D8B] hover:bg-[#F5F6FA] hover:text-[#2c3ca4] transition-colors"
+                      aria-label={copiedMessageIndex === i ? "Copied" : "Copy answer"}
+                      title={copiedMessageIndex === i ? "Copied" : "Copy"}
+                    >
+                      {copiedMessageIndex === i ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  )}
+                  {msg.role === "assistant" && msg.source && (
+                    <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-300">
                       {msg.source === "Knowledge Base" ? <FileText className="w-3 h-3" /> : <Globe className="w-3 h-3" />}
                       {msg.source}
                     </div>
@@ -89,31 +112,26 @@ export default function Chat({ provider }: { provider: string }) {
         )}
       </div>
 
-      {/* Footer Area - Centered 600px Input */}
-      <div className="p-8 bg-gradient-to-t from-white via-white to-transparent">
-        <div className="max-w-[670px] mx-auto flex items-center gap-4">
+      <div className="px-0 pb-[72px] pt-0">
+        <div className="max-w-[670px] mx-auto flex items-center gap-[14px]">
           <div className="relative flex-1">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1c1c1c]" strokeWidth={1.75} />
             <input 
               type="text" 
-              placeholder="Type message..." 
+              placeholder="Type message" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              className="w-full h-14 pl-14 pr-6 bg-[#F4F4F4] border border-[#E5E5E5] rounded-[28px] text-[15px] outline-none focus:bg-white focus:border-[#313DA7] transition-all"
+              className="w-full h-12 pl-12 pr-6 bg-[#FAFAFA] rounded-[999px] border border-[#B0BEC5] text-[14px] text-[#1c1c1c] placeholder:text-[rgba(28,28,28,0.2)] outline-none focus:border-[#2c3ca4]"
             />
           </div>
           <button 
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="w-14 h-14 bg-[#F4F4F4] border border-[#E5E5E5] rounded-full flex items-center justify-center hover:bg-white hover:border-[#313DA7] hover:text-[#313DA7] disabled:opacity-30 transition-all shadow-sm"
+            className="w-12 h-12 bg-[#2c3ca4] rounded-full flex items-center justify-center text-white hover:bg-[#263694] transition-colors shadow-[0px_4px_14px_rgba(44,60,164,0.28)]"
           >
-            {isLoading ? <Loader2 className="w-6 h-6 animate-spin text-gray-400" /> : <Send className="w-5 h-5" />}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" strokeWidth={2.25} />}
           </button>
         </div>
-        <p className="text-center text-[10px] text-gray-400 mt-4 font-medium">
-          AI can make mistakes. Consider checking important information.
-        </p>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Upload, Link as LinkIcon, Trash2, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronDown, Loader2, X } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = "http://localhost:8000";
@@ -18,9 +18,23 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
   const [url, setUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [isProviderOpen, setIsProviderOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const providerMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     axios.get(`${API_BASE}/providers`).then(res => setProviders(res.data)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (providerMenuRef.current && !providerMenuRef.current.contains(event.target as Node)) {
+        setIsProviderOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,118 +60,115 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
       onKnowledgeProcessed(res.data.chunks_processed);
       setStatus("Knowledge Initialized!");
       setTimeout(() => setStatus(null), 3000);
-    } catch (error) {
+    } catch {
       setStatus("Error processing knowledge");
     } finally {
       setIsProcessing(false);
     }
   };
-
   return (
-    <aside className="w-[278px] min-w-[278px] border-r border-[#E5E5E5] bg-white flex flex-col h-full overflow-y-auto p-4 gap-6">
-      {/* Logo Area (matches Figma Header) */}
-      <div className="flex items-center gap-2 mb-2">
-        <Sparkles className="w-6 h-6 text-[#313DA7]" />
-        <span className="font-semibold text-lg">Personal AI</span>
-      </div>
-
-      {/* Model Setup */}
-      <section>
-        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Model Setup</h3>
-        <select 
-          value={selectedProvider}
-          onChange={(e) => setSelectedProvider(e.target.value)}
-          className="w-full h-10 px-3 bg-white border border-[#E5E5E5] rounded-lg text-sm outline-none appearance-none cursor-pointer hover:border-gray-300 transition-colors"
-        >
-          {providers.length > 0 ? providers.map(p => (
-            <option key={p} value={p}>{p}</option>
-          )) : <option>Gemini</option>}
-        </select>
-      </section>
-
-      {/* Knowledge Base */}
-      <section className="flex flex-col gap-4">
-        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Knowledge Base</h3>
-        
-        {/* Figma Dashed Uploader */}
-        <label className="border-[1.5px] border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#313DA7] hover:bg-[#F8F9FF] transition-all group">
-          <Upload className="w-6 h-6 text-gray-400 group-hover:text-[#313DA7]" />
-          <div className="text-center">
-            <p className="text-[13px] font-medium text-gray-600">Drag and drop files here</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">Limit 200MB per file</p>
-          </div>
-          <input type="file" multiple accept=".pdf" className="hidden" onChange={handleFileChange} />
-          <button className="mt-2 px-6 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-50">Browse</button>
-        </label>
-
-        {/* File List */}
-        <div className="flex flex-col gap-2">
-          {files.map((file, i) => (
-            <div key={i} className="flex items-center justify-between h-10 px-3 bg-white border border-[#E5E5E5] rounded-lg group">
-              <span className="text-[12px] text-gray-600 truncate max-w-[180px]">{file.name}</span>
-              <button onClick={() => removeFile(i)} className="text-gray-300 hover:text-red-500">
-                <X className="w-4 h-4" />
-              </button>
+    <aside className="w-[278px] min-w-[278px] h-full">
+      <div className="h-full w-full overflow-y-auto">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <div className="h-10 px-3 rounded-full bg-[#f0f0f0] flex items-center">
+              <span className="text-[16px] font-semibold text-[#1c1c1c] leading-6 whitespace-nowrap">
+                ✦ Personal AI
+              </span>
             </div>
-          ))}
-        </div>
+            <div ref={providerMenuRef} className="h-10 flex-1 min-w-0 relative opacity-80">
+              <button
+                type="button"
+                onClick={() => setIsProviderOpen((prev) => !prev)}
+                className="h-10 w-full rounded-full bg-transparent px-0 flex items-center justify-between text-[#1c1c1c]"
+                aria-label="Select provider"
+                aria-expanded={isProviderOpen}
+              >
+                <span className="text-[14px] font-medium truncate pr-3">{selectedProvider}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isProviderOpen ? "rotate-180" : ""}`} />
+              </button>
 
-        {/* URL Input */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[12px] font-semibold text-gray-500">Open Website</label>
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Enter URL here..." 
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full h-10 px-3 bg-white border border-[#E5E5E5] rounded-lg text-sm outline-none focus:border-[#313DA7] transition-colors"
-            />
+              {isProviderOpen && (
+                <div className="absolute top-[46px] left-0 right-0 rounded-xl border border-[#CFD8DC] bg-white shadow-[0px_10px_24px_rgba(0,0,0,0.08)] p-1.5 z-20">
+                  {(providers.length > 0 ? providers : ["Gemini"]).map((provider) => {
+                    const isActive = provider === selectedProvider;
+                    return (
+                      <button
+                        key={provider}
+                        type="button"
+                        onClick={() => {
+                          setSelectedProvider(provider);
+                          setIsProviderOpen(false);
+                        }}
+                        className={`w-full h-9 px-3 rounded-lg text-left text-[14px] transition-colors ${
+                          isActive
+                            ? "bg-[#EEF0FA] text-[#2c3ca4] font-medium"
+                            : "text-[#1c1c1c] hover:bg-[#F5F6FA]"
+                        }`}
+                      >
+                        {provider}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
+          <section className="flex flex-col gap-6 mt-24">
+            <label className="w-full rounded-xl border border-dashed border-[#455A64] bg-[#FAFAFA] px-4 py-6 flex flex-col items-center gap-6 text-center cursor-pointer">
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-[14px] leading-4 font-medium text-[#263238]">Drag and drop files here</p>
+                <p className="text-[11px] leading-[13px] text-[#607D8B]">Limit 200MB per file</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-8 px-4 rounded bg-white border border-[#CFD8DC] text-[14px] leading-4 font-medium text-[#263238] inline-flex items-center hover:bg-[#f8f8f8] transition-colors cursor-pointer"
+              >
+                Browse
+              </button>
+              <input ref={fileInputRef} type="file" multiple accept=".pdf" className="hidden" onChange={handleFileChange} />
+            </label>
+
+            <div className="flex flex-col gap-2">
+              {files.map((file, i) => (
+                <div key={`${file.name}-${i}`} className="h-10 rounded-xl bg-white px-3 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06),0px_1px_4px_1px_rgba(0,0,0,0.04)] flex items-center justify-between">
+                  <span className="text-[14px] text-[#1c1c1c] truncate max-w-[200px]">{file.name}</span>
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="text-[#1c1c1c] hover:opacity-70 transition-opacity"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[14px] text-[#1c1c1c]">Open Website</label>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="h-12 rounded-xl border border-[#B0BEC5] bg-[#FAFAFA] px-3 text-[14px] text-[#1c1c1c] outline-none focus:border-[#2c3ca4]"
+              />
+            </div>
+
+            <button
+              onClick={processKnowledge}
+              disabled={isProcessing}
+              className="h-[52px] rounded-xl bg-[#2c3ca4] hover:bg-[#263694] text-white text-[16px] font-medium leading-5 flex items-center justify-center gap-2 transition-colors disabled:opacity-90"
+            >
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <span aria-hidden>✦</span>}
+              Initiate Knowledge Base
+            </button>
+
+            {status && <p className="text-center text-[11px] text-[#2c3ca4]">{status}</p>}
+          </section>
         </div>
-
-        {/* Action Button - Exact Indigo */}
-        <button 
-          onClick={processKnowledge}
-          disabled={isProcessing || (files.length === 0 && !url)}
-          className="w-full h-11 bg-[#313DA7] hover:bg-[#252E8C] disabled:bg-gray-200 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-sm"
-        >
-          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          Initiate Knowledge Base
-        </button>
-
-        {status && (
-          <p className="text-center text-[11px] font-medium text-[#313DA7] mt-1">{status}</p>
-        )}
-      </section>
-
-      <div className="mt-auto pt-4 border-t border-gray-50">
-        <button 
-          onClick={() => axios.post(`${API_BASE}/clear`)}
-          className="w-full h-10 text-gray-400 hover:text-red-500 text-[12px] font-medium flex items-center justify-center gap-2 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          Clear All Knowledge
-        </button>
       </div>
     </aside>
-  );
-}
-
-function Sparkles(props: any) {
-  return (
-    <svg 
-      {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    </svg>
   );
 }

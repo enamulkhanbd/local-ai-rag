@@ -8,13 +8,15 @@ export default function Home() {
   const [selectedProvider, setSelectedProvider] = useState("Gemini");
 
   return (
-    <main className="fixed inset-0 flex bg-white overflow-hidden select-none">
-      <Sidebar 
-        onKnowledgeProcessed={() => {}} 
+    <main className="fixed inset-0 bg-white overflow-hidden select-none p-4">
+      <div className="h-full w-full rounded-3xl bg-white overflow-hidden flex">
+        <Sidebar
+        onKnowledgeProcessed={() => {}}
         selectedProvider={selectedProvider}
         setSelectedProvider={setSelectedProvider}
-      />
-      <Chat provider={selectedProvider} />
+        />
+        <Chat provider={selectedProvider} />
+      </div>
     </main>
   );
 }

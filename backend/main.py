@@ -4,6 +4,7 @@ from typing import List, Optional
 import os
 import tempfile
 import shutil
+from pathlib import Path
 from dotenv import load_dotenv
 
 # LangChain components
@@ -18,13 +19,18 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
 # --- Load API Keys ---
-load_dotenv(override=True)
+ROOT_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(dotenv_path=ROOT_ENV_PATH, override=True)
+
+def _clean_env(name: str) -> str:
+    return (os.getenv(name) or "").strip()
+
 KEYS = {
-    "Gemini": os.getenv("GOOGLE_API_KEY"),
-    "OpenAI": os.getenv("OPENAI_API_KEY"),
-    "Claude": os.getenv("ANTHROPIC_API_KEY"),
-    "DeepSeek": os.getenv("DEEPSEEK_API_KEY"),
-    "OpenRouter": os.getenv("OPENROUTER_API_KEY")
+    "Gemini": _clean_env("GOOGLE_API_KEY"),
+    "OpenAI": _clean_env("OPENAI_API_KEY"),
+    "Claude": _clean_env("ANTHROPIC_API_KEY"),
+    "DeepSeek": _clean_env("DEEPSEEK_API_KEY"),
+    "OpenRouter": _clean_env("OPENROUTER_API_KEY")
 }
 
 app = FastAPI()
