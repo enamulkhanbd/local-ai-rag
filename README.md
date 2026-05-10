@@ -1,46 +1,38 @@
-# ✦ Multi-AI Knowledge Assistant
+# ✦ Personal AI (Pixel-Perfect RAG)
 
-A powerful, local RAG (Retrieval-Augmented Generation) application that lets you "feed" PDFs or Websites to multiple AI providers including **Gemini, OpenAI, Claude, and DeepSeek**.
+A professional, multi-AI RAG application with a modern React frontend and FastAPI backend.
 
-## 🚀 Features
-- **Multi-Provider Support**: Switch between AI brains from the sidebar.
-- **Local Embeddings**: Uses `sentence-transformers` locally, so processing documents is **free and fast** for all providers.
-- **Multiple File Upload**: Feed several PDFs at once to build a comprehensive knowledge base.
-- **Smart Fallback**: If the answer isn't in your documents, the AI automatically falls back to its general knowledge.
-- **Secure Configuration**: No API keys are exposed in the UI.
+## 📁 Project Structure
+- **/frontend**: Next.js (React) application with Tailwind CSS.
+- **/backend**: FastAPI server handling LangChain and FAISS logic.
 
-## 🛠️ Setup
+## 🚀 Getting Started
 
-### 1. Install Dependencies
-Make sure you have Python installed, then run:
-```bash
-pip install streamlit langchain-google-genai langchain-openai langchain-anthropic langchain-huggingface faiss-cpu pypdf beautifulsoup4 python-dotenv
-```
+### 1. Setup Backend
+1. Go to `backend/` folder.
+2. Ensure you have your `.env` file with API keys.
+3. Install dependencies:
+   ```bash
+   pip install fastapi uvicorn langchain langchain-openai langchain-google-genai langchain-anthropic langchain-huggingface faiss-cpu pypdf beautifulsoup4 python-dotenv
+   ```
+4. Run the server:
+   ```bash
+   python3 main.py
+   ```
 
-### 2. Configure API Keys (.env)
-This app uses a `.env` file for secure configuration. 
-1. Create a file named `.env` in the root directory.
-2. Add your API keys like this (only add the ones you want to use):
+### 2. Setup Frontend
+1. Go to `frontend/` folder.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-```env
-GOOGLE_API_KEY=your_gemini_key
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_claude_key
-DEEPSEEK_API_KEY=your_deepseek_key
-```
-
-> **Note:** The app will only show providers in the sidebar for which you have provided a key in the `.env` file.
-
-### 3. Run the App
-```bash
-python3 -m streamlit run app.py
-```
-
-## 📖 How to Use
-1. **Select Provider**: Pick your preferred AI from the sidebar.
-2. **Feed Knowledge**: Upload one or more PDFs or enter a website URL.
-3. **Initialize**: Click "Initialize Knowledge Base".
-4. **Chat**: Ask questions! The AI will look at your documents first, then fallback to general knowledge if needed.
-
----
-*Built with LangChain and Streamlit.*
+## 🎨 Features
+- **Pixel-Perfect UI**: 100% matched to Figma redesign.
+- **Multi-AI**: Toggle between Gemini, OpenAI, Claude, and DeepSeek.
+- **Local RAG**: Free and fast document processing using local embeddings.
+- **Smart Fallback**: Intelligent switching between knowledge base and general chat.
