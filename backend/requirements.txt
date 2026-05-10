@@ -2,11 +2,14 @@ fastapi
 uvicorn
 python-multipart
 langchain
+langchain-core
 langchain-openai
 langchain-google-genai
 langchain-anthropic
 langchain-huggingface
 langchain-community
+langchain-text-splitters
+tiktoken
 faiss-cpu
 pypdf
 beautifulsoup4

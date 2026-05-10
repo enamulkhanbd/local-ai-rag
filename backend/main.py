@@ -25,9 +25,9 @@ from langchain_anthropic import ChatAnthropic
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.chains.retrieval_qa import RetrievalQA
+from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
@@ -40,8 +40,11 @@ import whisper
 import xlrd
 
 # --- Load API Keys ---
+# Try to find .env in current dir, then parent dir
+load_dotenv(override=True) # First try current dir
 ROOT_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
-load_dotenv(dotenv_path=ROOT_ENV_PATH, override=True)
+if ROOT_ENV_PATH.exists():
+    load_dotenv(dotenv_path=ROOT_ENV_PATH, override=True)
 
 def _clean_env(name: str) -> str:
     return (os.getenv(name) or "").strip()
