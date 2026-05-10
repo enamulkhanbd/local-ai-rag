@@ -5,6 +5,16 @@ import { ChevronDown, Loader2, X } from 'lucide-react';
 import axios from 'axios';
 
 const API_BASE = "http://localhost:8000";
+const ACCEPTED_UPLOAD_TYPES = [
+  ".pdf", ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
+  ".xls", ".xlsx", ".xlsm", ".xlt", ".xltx", ".xltm",
+  ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".pps", ".ppsx", ".ppsm",
+  ".txt", ".md", ".rtf", ".csv", ".tsv", ".json", ".xml", ".html", ".htm",
+  ".odt", ".ods", ".odp", ".eml", ".msg", ".mbox",
+  ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff",
+  ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac",
+  ".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"
+].join(",");
 
 interface SidebarProps {
   onKnowledgeProcessed: (chunks: number) => void;
@@ -58,10 +68,12 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
     try {
       const res = await axios.post(`${API_BASE}/process-knowledge`, formData);
       onKnowledgeProcessed(res.data.chunks_processed);
-      setStatus("Knowledge Initialized!");
+      const skippedCount = Array.isArray(res.data.skipped_files) ? res.data.skipped_files.length : 0;
+      setStatus(skippedCount > 0 ? `Knowledge initialized with ${skippedCount} skipped file(s).` : "Knowledge Initialized!");
       setTimeout(() => setStatus(null), 3000);
-    } catch {
-      setStatus("Error processing knowledge");
+    } catch (error) {
+      const detail = axios.isAxiosError(error) ? error.response?.data?.detail : null;
+      setStatus(typeof detail === "string" && detail.trim() ? detail : "Error processing knowledge");
     } finally {
       setIsProcessing(false);
     }
@@ -118,8 +130,8 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
           <section className="flex flex-col gap-6 mt-24">
             <label className="w-full rounded-xl border border-dashed border-[#455A64] bg-[#FAFAFA] px-4 py-6 flex flex-col items-center gap-6 text-center cursor-pointer">
               <div className="flex flex-col items-center gap-1">
-                <p className="text-[14px] leading-4 font-medium text-[#263238]">Drag and drop files here</p>
-                <p className="text-[11px] leading-[13px] text-[#607D8B]">Limit 200MB per file</p>
+                <p className="text-[14px] leading-4 font-medium text-[#263238]">Upload documents, images, audio, or video</p>
+                <p className="text-[11px] leading-[13px] text-[#607D8B]">PDF, Office, text, image, audio, video. Limit 200MB per file.</p>
               </div>
               <button
                 type="button"
@@ -128,7 +140,7 @@ export default function Sidebar({ onKnowledgeProcessed, selectedProvider, setSel
               >
                 Browse
               </button>
-              <input ref={fileInputRef} type="file" multiple accept=".pdf" className="hidden" onChange={handleFileChange} />
+              <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_UPLOAD_TYPES} className="hidden" onChange={handleFileChange} />
             </label>
 
             <div className="flex flex-col gap-2">

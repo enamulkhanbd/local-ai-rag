@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Globe, FileText, Loader2, Search, Copy, Check, Sparkles, Database } from 'lucide-react';
 import axios from 'axios';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const API_BASE = "http://localhost:8000";
 
@@ -21,7 +22,7 @@ const setupSteps = [
   {
     icon: FileText,
     title: "Add your sources",
-    description: "Upload PDF files or paste a website URL so the assistant has context to search.",
+    description: "Upload Office files, PDFs, text files, images, audio, video, or paste a website URL.",
   },
   {
     icon: Database,
@@ -35,6 +36,41 @@ const starterPrompts = [
   "What are the most important facts, risks, and deadlines in these materials?",
   "Turn this knowledge base into a short briefing with action items.",
 ];
+
+function TypingIndicator() {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full bg-[#F5F7FB] px-4 py-3 shadow-[0px_8px_24px_rgba(15,23,42,0.05)]"
+      aria-label="AI is typing"
+      role="status"
+    >
+      {[0, 1, 2].map((index) => (
+        <motion.span
+          key={index}
+          className="h-2.5 w-2.5 rounded-full bg-[#2c3ca4]"
+          animate={
+            shouldReduceMotion
+              ? { opacity: 0.75, y: 0, scale: 1 }
+              : { opacity: [0.35, 1, 0.35], y: [0, -4, 0], scale: [0.88, 1, 0.88] }
+          }
+          transition={
+            shouldReduceMotion
+              ? { duration: 0 }
+              : {
+                  duration: 1.05,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  delay: index * 0.16,
+                }
+          }
+        />
+      ))}
+      <span className="sr-only">Assistant is typing</span>
+    </div>
+  );
+}
 
 export default function Chat({ provider, knowledgeChunks }: { provider: string; knowledgeChunks: number }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,7 +149,7 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
                   className={`max-w-[72%] rounded-2xl px-4 py-3 ${
                     msg.role === "user"
                       ? "bg-[#f0f0f0] text-[#1c1c1c]"
-                      : "bg-transparent text-[#1c1c1c]"
+                      : "bg-transparent text-[#1c1c1c] assistant-response-enter"
                   }`}
                 >
                   <div className="text-[15px] leading-relaxed whitespace-pre-wrap font-medium">
@@ -139,6 +175,14 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
                 </div>
               </div>
             ))}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-[72%] rounded-2xl px-4 py-3">
+                  <TypingIndicator />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="min-h-full flex items-center">
@@ -157,7 +201,7 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
                     <p className="mt-4 max-w-[560px] text-[15px] leading-7 text-[#607D8B]">
                       {hasKnowledge
                         ? `Your knowledge base has been initialized with ${knowledgeChunks} searchable chunks. Ask a question below or use one of the starter prompts to begin.`
-                        : "Choose a provider, add PDFs or a website from the left sidebar, and initialize the knowledge base. After that, the assistant will answer from your sources first and fall back to general AI when needed."}
+                        : "Choose a provider, add files or a website from the left sidebar, and initialize the knowledge base. After that, the assistant will answer from your sources first and fall back to general AI when needed."}
                     </p>
                   </div>
 
@@ -175,7 +219,7 @@ export default function Chat({ provider, knowledgeChunks }: { provider: string; 
                       <p className="mt-1.5 text-[13px] leading-6 text-[#607D8B]">
                         {hasKnowledge
                           ? "Ask for summaries, comparisons, action items, or exact details from your uploaded sources."
-                          : "Start in the sidebar: select a model, upload PDFs or add a URL, then click Initiate Knowledge Base."}
+                          : "Start in the sidebar: select a model, upload documents or media, or add a URL, then click Initiate Knowledge Base."}
                       </p>
                     </div>
                   </div>
