@@ -26,7 +26,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains.retrieval_qa import RetrievalQA
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 from bs4 import BeautifulSoup
@@ -212,13 +213,16 @@ def run_chat_with_provider(provider: str, message: str, mode: str) -> dict:
     source = "General Knowledge"
 
     if vector_db:
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            retriever=vector_db.as_retriever(search_kwargs={"k": 3}),
-            return_source_documents=False,
-            chain_type_kwargs={"prompt": RAG_PROMPT}
+        # Modern Retrieval Chain logic
+        combine_docs_chain = create_stuff_documents_chain(llm, RAG_PROMPT)
+        retrieval_chain = create_retrieval_chain(
+            vector_db.as_retriever(search_kwargs={"k": 3}), 
+            combine_docs_chain
         )
-        rag_response = qa_chain.invoke(message)["result"].strip()
+        
+        # In the new chain, the result is in 'answer' and the input is 'input'
+        rag_result = retrieval_chain.invoke({"input": message, "question": message})
+        rag_response = rag_result["answer"].strip()
 
         if NOT_FOUND_FLAG not in rag_response:
             response = rag_response
